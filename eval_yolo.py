@@ -168,7 +168,7 @@ class YOLOv8SailEvaluator:
         all_ids = self.coco.getImgIds()
         
         # SLICE the list to keep only the first 500
-        img_ids = all_ids[:500]
+        img_ids = all_ids
         results = []
 
         print(f"Running inference on {len(img_ids)} images using SAIL...")
