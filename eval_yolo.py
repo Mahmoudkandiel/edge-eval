@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 DATA_DIR = "~/datasets/coco"
 IMG_DIR = f"{DATA_DIR}/val2017"
-ANN_DIR = f"{DATA_DIR}/annotations"
+ANN_DIR = f"{DATA_DIR}/annotations/instances_val2017.json"
 # Import Sophon SAIL
 try:
     import sophon.sail as sail
