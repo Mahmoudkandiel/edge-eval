@@ -6,6 +6,9 @@ import cv2
 import time
 from tqdm import tqdm
 
+DATA_DIR = "~/datasets/coco"
+IMG_DIR = f"{DATA_DIR}/val2017"
+ANN_DIR = f"{DATA_DIR}/annotations"
 # Import Sophon SAIL
 try:
     import sophon.sail as sail
@@ -17,17 +20,17 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
 class YOLOv8SailEvaluator:
-    def __init__(self, args):
-        self.image_dir = args.images
-        self.conf_thres = args.conf_thres
-        self.iou_thres = args.iou_thres
-        
+    def __init__(self, images, conf_thres, iou_thres, bmodel, coco_json, dev_id):
+        self.image_dir = images
+        self.conf_thres = conf_thres
+        self.iou_thres = iou_thres
+
         # ------------------------------------------------------
         # 1. Initialize SAIL Engine
         # ------------------------------------------------------
-        print(f"Loading bmodel: {args.bmodel} on Device ID: {args.dev_id}...")
+        print(f"Loading bmodel: {bmodel} on Device ID: {dev_id}...")
         try:
-            self.net = sail.Engine(args.bmodel, args.dev_id, sail.IOMode.SYSIO)
+            self.net = sail.Engine(bmodel, dev_id, sail.IOMode.SYSIO)
         except Exception as e:
             print(f"Failed to load bmodel. Error: {e}")
             sys.exit(1)
@@ -47,8 +50,8 @@ class YOLOv8SailEvaluator:
         # ------------------------------------------------------
         # 2. Load COCO Ground Truth
         # ------------------------------------------------------
-        print(f"Loading COCO annotations from {args.coco_json}...")
-        self.coco = COCO(args.coco_json)
+        print(f"Loading COCO annotations from {coco_json}...")
+        self.coco = COCO(coco_json)
         
         # Map Model Indices (0-79) to COCO Category IDs (1-90)
         cats = self.coco.loadCats(self.coco.getCatIds())
@@ -130,9 +133,18 @@ class YOLOv8SailEvaluator:
         final_dets = []
         if len(indices) > 0:
             indices = indices.flatten()
+
+            if len(indices) > 100:
+                
+                top_indices = np.argsort(scores[indices])[::-1][:100]
+                indices = indices[top_indices]
+                print("Warning: More than 100 detections, keeping top 100 based on scores.")
+
             selected_boxes = boxes[indices]
             selected_scores = scores[indices]
             selected_classes = class_ids[indices]
+
+
             
             # Rescale to original image
             selected_boxes[:, [0, 2]] -= dwdh[0]
@@ -202,17 +214,11 @@ class YOLOv8SailEvaluator:
         coco_eval.accumulate()
         coco_eval.summarize()
         print(f"mAP (50-95): {coco_eval.stats[0]}")
+        print(f"mAP (50):    {coco_eval.stats[1]}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="YOLOv8 SAIL Evaluator")
-    parser.add_argument('--bmodel', type=str, required=True, help='Path to .bmodel file')
-    parser.add_argument('--coco_json', type=str, required=True, help='Path to annotations json')
-    parser.add_argument('--images', type=str, required=True, help='Path to image directory')
-    parser.add_argument('--dev_id', type=int, default=0, help='TPU Device ID (default 0)')
-    parser.add_argument('--conf_thres', type=float, default=0.001, help='Confidence threshold')
-    parser.add_argument('--iou_thres', type=float, default=0.65, help='NMS IoU threshold')
-    
-    args = parser.parse_args()
-
-    evaluator = YOLOv8SailEvaluator(args)
+    images =IMG_DIR
+    annotations = ANN_DIR
+    bmodel = "yolov8n_bm1688.bmodel"
+    evaluator = YOLOv8SailEvaluator(images, 0.001, 0.65, bmodel, annotations, 0)
     evaluator.run_eval()

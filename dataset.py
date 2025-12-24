@@ -2,7 +2,7 @@ import os
 import zipfile
 import urllib.request
 
-DATA_DIR = "~/datasets/coco"
+DATA_DIR = "/datasets/coco"
 IMG_DIR = f"{DATA_DIR}/val2017"
 ANN_DIR = f"{DATA_DIR}/annotations"
 
